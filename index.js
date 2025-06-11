@@ -25,6 +25,24 @@ const client = new MongoClient(uri, {
 
 async function run() {
   try {
+    const db = client.db("booknestdb");
+    const usersCollection = db.collection("users");
+    const bookCollection = db.collection("books");
+
+    app.post("/users", async (req, res) => {
+      const newUser = req.body;
+      const result = await usersCollection.insertOne(newUser);
+      res.send(result);
+    });
+
+    app.get("/users/:email", async (req, res) => {
+      const email = req.params.email;
+      const user = await usersCollection.findOne({ email });
+      if (user) {
+        res.send(user);
+      }
+    });
+
     await client.db("admin").command({ ping: 1 });
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!"
