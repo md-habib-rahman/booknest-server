@@ -1,6 +1,6 @@
 const express = require("express");
 const cors = require("cors");
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 require("dotenv").config();
 
 const app = express();
@@ -32,6 +32,7 @@ async function run() {
     app.post("/users", async (req, res) => {
       const newUser = req.body;
       const result = await usersCollection.insertOne(newUser);
+      console.log(result);
       res.send(result);
     });
 
@@ -40,6 +41,24 @@ async function run() {
       const user = await usersCollection.findOne({ email });
       if (user) {
         res.send(user);
+      }
+    });
+
+    app.get("/books/:category", async (req, res) => {
+      const cat = req.params.category;
+      const books = await bookCollection.find({ category: cat }).toArray();
+      if (books) {
+        res.send(books);
+      }
+    });
+
+    app.get("/book-details/:id", async (req, res) => {
+		// console.log(req.params.id)
+      const id = req.params.id;
+      const book = await bookCollection.findOne({ _id: new ObjectId(id) });
+	  console.log(book)
+      if (book) {
+        res.send(book);
       }
     });
 
