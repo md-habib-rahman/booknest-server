@@ -28,6 +28,7 @@ async function run() {
     const db = client.db("booknestdb");
     const usersCollection = db.collection("users");
     const bookCollection = db.collection("books");
+    const borrowedCollection = db.collection("borrowedBooks");
 
     app.post("/users", async (req, res) => {
       const newUser = req.body;
@@ -53,13 +54,30 @@ async function run() {
     });
 
     app.get("/book-details/:id", async (req, res) => {
-		// console.log(req.params.id)
+      // console.log(req.params.id)
       const id = req.params.id;
       const book = await bookCollection.findOne({ _id: new ObjectId(id) });
-	  console.log(book)
+      //   console.log(book);
       if (book) {
         res.send(book);
       }
+    });
+
+    app.post("/book-borrow", async (req, res) => {
+      const newEntry = req.body;
+      console.log(newEntry);
+      const result = await borrowedCollection.insertOne(newEntry);
+      console.log(result);
+      res.send(result);
+    });
+
+    app.patch("/update-quantity/:id", async (req, res) => {
+      const id = req.params.id;
+      const result = await bookCollection.updateOne(
+        { _id: new ObjectId(id), quantity: { $gt: 0 } },
+        { $inc: { quantity: -1 } }
+      );
+      res.send(result);
     });
 
     await client.db("admin").command({ ping: 1 });
