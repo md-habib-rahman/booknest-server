@@ -54,7 +54,7 @@ async function run() {
     });
 
     app.get("/book-details/:id", async (req, res) => {
-      // console.log(req.params.id)
+      console.log(req.params);
       const id = req.params.id;
       const book = await bookCollection.findOne({ _id: new ObjectId(id) });
       //   console.log(book);
@@ -90,10 +90,22 @@ async function run() {
 
     app.get("/books", async (req, res) => {
       const books = await bookCollection.find().toArray();
-    //   console.log(books);
+      //   console.log(books);
       if (books) {
         res.send(books);
       }
+    });
+
+    app.patch("/update-book/:id", async (req, res) => {
+      const id = req.params.id;
+      const updatedData = req.body;
+      //delete updatedData._id;
+      console.log(updatedData);
+      const result = await bookCollection.updateOne(
+        { _id: new ObjectId(id) },
+        { $set: updatedData }
+      );
+      res.send(result);
     });
 
     await client.db("admin").command({ ping: 1 });
