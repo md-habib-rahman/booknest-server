@@ -33,15 +33,18 @@ async function run() {
     app.post("/users", async (req, res) => {
       const newUser = req.body;
       const result = await usersCollection.insertOne(newUser);
-      console.log(result);
+      //   console.log(result);
       res.send(result);
     });
 
     app.get("/users/:email", async (req, res) => {
       const email = req.params.email;
+      //   console.log(email);
       const user = await usersCollection.findOne({ email });
       if (user) {
         res.send(user);
+      } else {
+        res.send("No data found");
       }
     });
 
@@ -54,7 +57,7 @@ async function run() {
     });
 
     app.get("/book-details/:id", async (req, res) => {
-      console.log(req.params);
+      //   console.log(req.params);
       const id = req.params.id;
       const book = await bookCollection.findOne({ _id: new ObjectId(id) });
       //   console.log(book);
@@ -64,18 +67,26 @@ async function run() {
     });
 
     app.post("/book-borrow", async (req, res) => {
-      const newEntry = req.body;
+      const { email, bookId, returnDate, borrowedOn } = req.body;
+      const newEntry = {
+        email,
+        bookId: new ObjectId(bookId),
+        returnDate,
+        borrowedOn,
+      };
+
       console.log(newEntry);
       const result = await borrowedCollection.insertOne(newEntry);
-      console.log(result);
+      //   console.log(result);
       res.send(result);
     });
 
     app.patch("/update-quantity/:id", async (req, res) => {
       const id = req.params.id;
+      const count = req.body.q;
       const result = await bookCollection.updateOne(
         { _id: new ObjectId(id), quantity: { $gt: 0 } },
-        { $inc: { quantity: -1 } }
+        { $inc: { quantity: count } }
       );
       res.send(result);
     });
@@ -100,12 +111,49 @@ async function run() {
       const id = req.params.id;
       const updatedData = req.body;
       //delete updatedData._id;
-      console.log(updatedData);
+      //   console.log(updatedData);
       const result = await bookCollection.updateOne(
         { _id: new ObjectId(id) },
         { $set: updatedData }
       );
       res.send(result);
+    });
+
+    app.get("/borrowed-books/:email", async (req, res) => {
+      const email = req.params.email;
+      const borrowedBooks = await borrowedCollection.find({ email }).toArray();
+      if (borrowedBooks) {
+        res.send(borrowedBooks);
+        // console.log(borrowedBooks);
+      } else {
+        res.status(404).send("No data available");
+      }
+    });
+
+    app.get("/borrowed-books-lists/:email", async (req, res) => {
+      const email = req.params.email;
+      const aggregationResult = await borrowedCollection
+        .aggregate([
+          {
+            $match: {
+              email: email,
+            },
+          },
+          {
+            $lookup: {
+              from: "books",
+              localField: "bookId", 
+              foreignField: "_id",
+              as: "bookDetails", 
+            },
+          },
+          {
+            $unwind: "$bookDetails",
+          },
+        ])
+        .toArray();
+
+      res.send(aggregationResult);
     });
 
     await client.db("admin").command({ ping: 1 });
