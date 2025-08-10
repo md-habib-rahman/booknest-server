@@ -1,7 +1,10 @@
+require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
-require("dotenv").config();
+
+var admin = require("firebase-admin");
+var serviceAccount = require("./book-nest-auth-firebase-adminsdk.json");
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -22,6 +25,28 @@ const client = new MongoClient(uri, {
     deprecationErrors: true,
   },
 });
+
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+});
+
+const verifyFirebaseToken = async (req, res, next) => {
+  const authHeader = req.headers?.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).send({ message: "unauthorized access" });
+  }
+
+  const token = authHeader.split(" ")[1];
+  try {
+    const decoded = await admin.auth().verifyIdToken(token);
+    req.decoded = decoded;
+    next();
+  } catch (err) {
+    return res.status(401).send({ message: "unauthorized access" });
+  }
+
+  //   console.log("token in the middleware", token);
+};
 
 async function run() {
   try {
@@ -46,6 +71,11 @@ async function run() {
       } else {
         res.send("No data found");
       }
+    });
+
+    app.get("/top-rated", async (req, res) => {
+      const books = await bookCollection.find().sort({ rating: -1 }.limit(4));
+      res.send(books);
     });
 
     app.get("/books/:category", async (req, res) => {
@@ -75,7 +105,7 @@ async function run() {
         borrowedOn,
       };
 
-      console.log(newEntry);
+      //   console.log(newEntry);
       const result = await borrowedCollection.insertOne(newEntry);
       //   console.log(result);
       res.send(result);
@@ -88,7 +118,7 @@ async function run() {
         { _id: new ObjectId(id), quantity: { $gt: 0 } },
         { $inc: { quantity: count } }
       );
-      res.send(result);
+      res.status(200).send(result);
     });
 
     app.post("/add-book", async (req, res) => {
@@ -130,36 +160,54 @@ async function run() {
       }
     });
 
-    app.get("/borrowed-books-lists/:email", async (req, res) => {
-      const email = req.params.email;
-      const aggregationResult = await borrowedCollection
-        .aggregate([
-          {
-            $match: {
-              email: email,
+    app.get(
+      "/borrowed-books-lists/:email",
+      verifyFirebaseToken,
+      async (req, res) => {
+        //   console.log("req header", req.headers);
+        const email = req.params.email;
+        if (email !== req.decoded.email) {
+          return res.status(403).send({ message: "forbidden access" });
+        }
+        const aggregationResult = await borrowedCollection
+          .aggregate([
+            {
+              $match: {
+                email: email,
+              },
             },
-          },
-          {
-            $lookup: {
-              from: "books",
-              localField: "bookId", 
-              foreignField: "_id",
-              as: "bookDetails", 
+            {
+              $lookup: {
+                from: "books",
+                localField: "bookId",
+                foreignField: "_id",
+                as: "bookDetails",
+              },
             },
-          },
-          {
-            $unwind: "$bookDetails",
-          },
-        ])
-        .toArray();
+            {
+              $unwind: "$bookDetails",
+            },
+          ])
+          .toArray();
 
-      res.send(aggregationResult);
+        res.send(aggregationResult);
+      }
+    );
+
+    app.delete("/book-return/:id", async (req, res) => {
+      const id = req.params.id;
+      const result = await borrowedCollection.deleteOne({
+        _id: new ObjectId(id),
+      });
+      if (result.deletedCount === 1) {
+        res.status(200).send("Id Deleted");
+      }
     });
 
-    await client.db("admin").command({ ping: 1 });
-    console.log(
-      "Pinged your deployment. You successfully connected to MongoDB!"
-    );
+    // await client.db("admin").command({ ping: 1 });
+    // console.log(
+    //   "Pinged your deployment. You successfully connected to MongoDB!"
+    // );
   } finally {
   }
 }

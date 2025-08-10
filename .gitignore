@@ -1,2 +1,4 @@
 node_modules/
 .env
+book-nest-auth-firebase-adminsdk.json
+.vercel
