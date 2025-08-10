@@ -54,6 +54,7 @@ async function run() {
     const usersCollection = db.collection("users");
     const bookCollection = db.collection("books");
     const borrowedCollection = db.collection("borrowedBooks");
+    const messageCollection = db.collection("messageCollection");
 
     app.post("/users", async (req, res) => {
       const newUser = req.body;
@@ -74,7 +75,11 @@ async function run() {
     });
 
     app.get("/top-rated", async (req, res) => {
-      const books = await bookCollection.find().sort({ rating: -1 }.limit(4));
+      const books = await bookCollection
+        .find({})
+        .sort({ rating: -1 })
+        .limit(4)
+        .toArray();
       res.send(books);
     });
 
@@ -107,6 +112,20 @@ async function run() {
 
       //   console.log(newEntry);
       const result = await borrowedCollection.insertOne(newEntry);
+      //   console.log(result);
+      res.send(result);
+    });
+
+    //user message
+    app.post("/message", async (req, res) => {
+      const { name, email, message } = req.body;
+      const newEntry = {
+        name,
+        email,
+        message,
+      };
+
+      const result = await messageCollection.insertOne(newEntry);
       //   console.log(result);
       res.send(result);
     });
