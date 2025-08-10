@@ -130,6 +130,11 @@ async function run() {
       res.send(result);
     });
 
+    app.get("/messages", async (req, res) => {
+      const result = await messageCollection.find().toArray();
+      res.send(result);
+    });
+
     app.patch("/update-quantity/:id", async (req, res) => {
       const id = req.params.id;
       const count = req.body.q;
